@@ -1,0 +1,14 @@
+{
+  "id": "balatrostuff",
+  "name": "Balatrostuff",
+  "display_name": "Balatrostuff",
+  "author": ["Balatrostuff"],
+  "description": "28 original gameplay Jokers, from money and hand synergies to high-risk multipliers.",
+  "prefix": "bstf",
+  "main_file": "main.lua",
+  "priority": 0,
+  "badge_colour": "D94B4B",
+  "badge_text_colour": "FFFFFF",
+  "version": "0.1.0",
+  "dependencies": ["Steamodded (>=1.0.0~BETA-1221a)"]
+}
