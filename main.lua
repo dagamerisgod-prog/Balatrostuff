@@ -488,3 +488,189 @@ register_broken_tarot {
         ease_dollars(50)
     end,
 }
+
+-- v0.3.0: arithmetic operators, reality-breaking consumables, decks and stakes.
+-- The balance target is intentionally absurd; the effects are still bounded where
+-- an unbounded loop or recursive scoring would risk locking up a run.
+
+register_joker {
+    key = 'operator_plus', name = 'Operator: PLUS', rarity = 3, cost = 20,
+    text = { 'Add {C:chips}+777{} Chips and {C:mult}+77{} Mult', 'then add another +7 Mult per Joker' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { chips = 777, mult = 77 + (#G.jokers.cards * 7) } end
+    end
+}
+
+register_joker {
+    key = 'operator_times', name = 'Operator: TIMES', rarity = 3, cost = 25,
+    text = { 'Multiply Mult by {X:mult,C:white} X7 {}', 'and gain {C:chips}+777{} Chips' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { xmult = 7, chips = 777, message = 'TIMES SEVEN!' } end
+    end
+}
+
+register_joker {
+    key = 'operator_power', name = 'Operator: POWER', rarity = 4, cost = 40,
+    text = { 'Multiply final Mult by {X:mult,C:white} X10 {}', '{C:inactive}(The exponential operator is too unstable)' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { xmult = 10, message = 'EXPONENTIATED' } end
+    end
+}
+
+register_joker {
+    key = 'operator_factorial', name = 'Operator: FACTORIAL', rarity = 4, cost = 50,
+    text = { 'Gain {C:mult}+25{} Mult for each card scored', 'and {X:mult,C:white} X3 {} Mult for each Ace' },
+    calculate = function(self, card, context)
+        if context.joker_main and context.scoring_hand then
+            local aces = 0
+            for _, c in ipairs(context.scoring_hand) do if c:get_id() == 14 then aces = aces + 1 end end
+            return { mult = #context.scoring_hand * 25, xmult = 3 ^ math.min(aces, 8) }
+        end
+    end
+}
+
+register_joker {
+    key = 'blue_screen', name = 'Blue Screen of God', rarity = 4, cost = 50,
+    text = { '{X:mult,C:white} X25 {} Mult and {C:chips}+2500{} Chips', 'if your hand contains a Pair or better' },
+    calculate = function(self, card, context)
+        if context.joker_main and context.poker_hands then
+            for _, hand_name in ipairs({'Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush','Five of a Kind','Flush House','Flush Five'}) do
+                if next(context.poker_hands[hand_name] or {}) then return { xmult = 25, chips = 2500 } end
+            end
+        end
+    end
+}
+
+register_joker {
+    key = 'ante_eater', name = 'Ante Eater', rarity = 4, cost = 45,
+    text = { 'At end of round, gain {C:money}$20{}', 'and {X:mult,C:white} X2 {} Mult per Ante (max X64)' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { xmult = math.min(64, 2 ^ math.max(0, (G.GAME.round_resets.ante or 1) - 1)) } end
+        if context.end_of_round and context.main_eval and not context.blueprint then
+            ease_dollars(20); return { message = '+$20', colour = G.C.MONEY, card = card }
+        end
+    end
+}
+
+register_joker {
+    key = 'duplicate_machine', name = 'Duplicate Machine', rarity = 4, cost = 40,
+    text = { 'Create a copy of a random Joker', 'when a Boss Blind is defeated (room required)' },
+    calculate = function(self, card, context)
+        if context.end_of_round and context.main_eval and G.GAME.blind.boss and not context.blueprint and #G.jokers.cards < G.jokers.config.card_limit then
+            G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.2, func = function()
+                if #G.jokers.cards < G.jokers.config.card_limit and #G.jokers.cards > 0 then
+                    local source = pseudorandom_element(G.jokers.cards, pseudorandom('bstf_dup_machine'))
+                    if source then local copy = copy_card(source); copy:add_to_deck(); G.jokers:emplace(copy) end
+                end
+                return true
+            end }))
+            return { message = 'COPY MACHINE!', colour = G.C.PURPLE, card = card }
+        end
+    end
+}
+
+register_joker {
+    key = 'infinity_loop', name = 'Infinity Loop', rarity = 4, cost = 50,
+    text = { 'Retrigger each played card {C:attention}3{} times', 'and gain {C:mult}+3{} Mult per retrigger' },
+    calculate = function(self, card, context)
+        if context.repetition and context.cardarea == G.play and not context.repetition_only then
+            return { repetitions = 3, message = 'AGAIN!' }
+        end
+        if context.joker_main then return { mult = 3 * #G.play.cards } end
+    end
+}
+
+register_broken_tarot {
+    key = 'operator_add', name = 'Operator: Add', cost = 0,
+    text = { 'Gain {C:money}$777{} and {C:chips}+777{} chips this round' },
+    use = function(self, card, area, copier)
+        ease_dollars(777)
+        G.GAME.chips = (G.GAME.chips or 0) + 777
+    end,
+}
+
+register_broken_tarot {
+    key = 'operator_multiply', name = 'Operator: Multiply', cost = 0,
+    text = { 'Upgrade every poker hand {C:attention}10{} times' },
+    use = function(self, card, area, copier)
+        for hand_key, hand in pairs(G.GAME.hands) do
+            if type(hand) == 'table' and hand.level then level_up_hand(card, hand_key, true, 10) end
+        end
+    end,
+}
+
+register_broken_tarot {
+    key = 'operator_power', name = 'Operator: Power', cost = 0,
+    text = { 'Create {C:attention}3{} random Jokers', 'and make them {C:dark_edition}Polychrome{}' },
+    can_use = function(self, card) return G.jokers and #G.jokers.cards < G.jokers.config.card_limit end,
+    use = function(self, card, area, copier)
+        for i = 1, 3 do
+            if #G.jokers.cards < G.jokers.config.card_limit then
+                local joker = create_card('Joker', G.jokers, nil, nil, nil, nil, nil, 'bstf_op_power')
+                joker:set_edition({polychrome = true}, true)
+                joker:add_to_deck(); G.jokers:emplace(joker)
+            end
+        end
+    end,
+}
+
+register_broken_tarot {
+    key = 'reality_reset', name = 'Reality Reset', cost = 0,
+    text = { 'Create a random {C:spectral}Spectral{} card', 'and gain {C:money}$1000{}' },
+    use = function(self, card, area, copier)
+        ease_dollars(1000)
+        if #G.consumeables.cards < G.consumeables.config.card_limit then
+            local created = create_card('Spectral', G.consumeables, nil, nil, nil, nil, nil, 'bstf_reality')
+            created:add_to_deck(); G.consumeables:emplace(created)
+        end
+    end,
+}
+
+-- A small set of deliberately unfair custom stakes. Effects are applied only at run start.
+local function register_unfair_stake(key, name, description, colour, scaling_add, dollars, above, applied)
+    SMODS.Stake {
+        key = key,
+        name = name,
+        above_stake = above,
+        applied_stakes = applied,
+        prefix_config = { atlas = false, sticker_atlas = { mod = false }, above_stake = { mod = false }, applied_stakes = { mod = false } },
+        unlocked = true,
+        discovered = true,
+        colour = colour,
+        atlas = 'Joker',
+        pos = { x = 0, y = 0 },
+        sticker_pos = { x = 0, y = 0 },
+        sticker_atlas = 'Joker',
+        loc_txt = { name = name, text = { description } },
+        modifiers = function(self)
+            G.GAME.modifiers = G.GAME.modifiers or {}
+            G.GAME.modifiers.scaling = (G.GAME.modifiers.scaling or 1) + scaling_add
+            G.GAME.starting_params.dollars = (G.GAME.starting_params.dollars or 4) - dollars
+        end,
+    }
+end
+
+register_unfair_stake('apocalypse', 'Apocalypse Stake', 'Blinds scale 2x faster and start with $2 less.', G.C.RED, 1, 2, 'stake_gold', {'stake_gold'})
+register_unfair_stake('cataclysm', 'Cataclysm Stake', 'Blinds scale 4x faster and start with $4 less.', G.C.PURPLE, 2, 2, 'bstf_apocalypse', {'stake_gold', 'bstf_apocalypse'})
+register_unfair_stake('unfair', 'UNFAIR Stake', 'Blinds scale 8x faster. Start broke. Good luck.', G.C.BLACK, 4, 4, 'bstf_cataclysm', {'stake_gold', 'bstf_apocalypse', 'bstf_cataclysm'})
+
+-- New decks use the built-in back atlas to avoid requiring extra sprite files.
+SMODS.Back {
+    key = 'operator_deck',
+    name = 'Operator Deck',
+    atlas = 'Joker',
+    prefix_config = { atlas = false },
+    pos = { x = 0, y = 0 },
+    config = { joker_slot = 2, consumable_slot = 2 },
+    loc_txt = { name = 'Operator Deck', text = { 'Start with {C:attention}+2{} Joker slots', 'and {C:attention}+2{} consumable slots', 'All Operator consumables cost $0' } },
+}
+
+SMODS.Back {
+    key = 'chaos_deck',
+    name = 'Chaos Deck',
+    atlas = 'Joker',
+    prefix_config = { atlas = false },
+    pos = { x = 1, y = 0 },
+    config = { dollars = 100, hands = 2, discards = 2 },
+    loc_txt = { name = 'Chaos Deck', text = { 'Start with {C:money}$100{}', '{C:attention}+2{} hands and discards', 'Boss Blinds are stronger' } },
+}

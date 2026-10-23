@@ -3,12 +3,12 @@
   "name": "Balatrostuff",
   "display_name": "Balatrostuff",
   "author": ["Balatrostuff"],
-  "description": "36 original Jokers and 4 deliberately overpowered Tarot consumables.",
+  "description": "44 Jokers, 8 broken Tarot consumables, unfair custom stakes, and 2 new decks.",
   "prefix": "bstf",
   "main_file": "main.lua",
   "priority": 0,
   "badge_colour": "D94B4B",
   "badge_text_colour": "FFFFFF",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "dependencies": ["Steamodded (>=1.0.0~BETA-1221a)"]
 }
