@@ -337,3 +337,154 @@ register_joker {
         end
     end
 }
+
+-- The following additions are intentionally ridiculous. Balance is not the goal.
+register_joker {
+    key = 'multiverse_engine', name = 'Multiverse Engine', rarity = 3, cost = 20,
+    text = { '{X:mult,C:white} X5 {} Mult and {C:chips}+500{} Chips', 'every scoring hand' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { xmult = 5, chips = 500 } end
+    end
+}
+
+register_joker {
+    key = 'seven_singularity', name = 'Seven Singularity', rarity = 3, cost = 15,
+    text = { 'Every played {C:attention}7{} gives {C:mult}+77{} Mult', 'and {X:mult,C:white} X2 {} Mult when scored' },
+    calculate = function(self, card, context)
+        if context.individual and context.cardarea == G.play and context.other_card:get_id() == 7 and not context.other_card.debuff then
+            return { mult = 77, card = card }
+        end
+        if context.joker_main then return { xmult = 2 } end
+    end
+}
+
+register_joker {
+    key = 'infinite_wallet', name = 'Infinite Wallet', rarity = 3, cost = 25,
+    text = { 'Earn {C:money}$10{} at the end of each hand', 'and {C:mult}+1{} Mult for every $10 you have (max +100)' },
+    calculate = function(self, card, context)
+        if context.joker_main then
+            local value = math.min(100, math.floor(math.max(0, G.GAME.dollars or 0) / 10))
+            return { mult = value }
+        end
+        if context.after and context.main_eval and not context.blueprint then
+            ease_dollars(10)
+            return { message = '+$10', colour = G.C.MONEY, card = card }
+        end
+    end
+}
+
+register_joker {
+    key = 'hand_of_gods', name = 'Hand of Gods', rarity = 3, cost = 20,
+    text = { '{C:chips}+100{} Chips and {C:mult}+25{} Mult', 'for every card in your scoring hand' },
+    calculate = function(self, card, context)
+        if context.joker_main and context.scoring_hand then
+            local n = #context.scoring_hand
+            return { chips = n * 100, mult = n * 25 }
+        end
+    end
+}
+
+register_joker {
+    key = 'the_red_button', name = 'The Red Button', rarity = 3, cost = 30,
+    text = { 'Retrigger every other Joker', '{C:inactive}(plus X3 Mult)' },
+    calculate = function(self, card, context)
+        if context.joker_main then return { xmult = 3 } end
+        if context.retrigger_joker_check and not context.retrigger_joker then
+            return { repetitions = 1, card = card }
+        end
+    end
+}
+
+register_joker {
+    key = 'planet_eater', name = 'Planet Eater', rarity = 3, cost = 20,
+    text = { 'When a hand scores, upgrade its level', 'and give {C:mult}+20{} Mult' },
+    calculate = function(self, card, context)
+        if context.joker_main and context.scoring_name and not context.blueprint then
+            level_up_hand(card, context.scoring_name, true, 1)
+            return { mult = 20, message = 'LEVEL UP!' }
+        end
+    end
+}
+
+register_joker {
+    key = 'glass_god', name = 'Glass God', rarity = 3, cost = 18,
+    text = { 'Each scoring card gives', '{X:mult,C:white} X2 {} Mult' },
+    calculate = function(self, card, context)
+        if context.individual and context.cardarea == G.play and context.other_card and not context.other_card.debuff then
+            return { xmult = 2, card = card }
+        end
+    end
+}
+
+register_joker {
+    key = 'joker_black_hole', name = 'Joker Black Hole', rarity = 3, cost = 30,
+    text = { '{X:mult,C:white} X2 {} Mult for each Joker you own', 'and {C:chips}+100{} Chips for each Joker' },
+    calculate = function(self, card, context)
+        if context.joker_main then
+            local n = #G.jokers.cards
+            return { xmult = 2 ^ math.max(1, n), chips = n * 100 }
+        end
+    end
+}
+
+-- Custom Tarot consumables use Balatro's built-in Tarot atlas as placeholder art.
+local function register_broken_tarot(def)
+    SMODS.Consumable {
+        key = def.key,
+        set = 'Tarot',
+        name = def.name,
+        cost = def.cost or 4,
+        unlocked = true,
+        discovered = true,
+        prefix_config = { atlas = false },
+        atlas = 'Tarot',
+        pos = def.pos or { x = 0, y = 0 },
+        loc_txt = { name = def.name, text = def.text },
+        can_use = def.can_use,
+        use = def.use,
+    }
+end
+
+register_broken_tarot {
+    key = 'money_printer', name = 'Money Printer', cost = 0,
+    text = { 'Create {C:money}$100{}' },
+    use = function(self, card, area, copier) ease_dollars(100) end,
+}
+
+register_broken_tarot {
+    key = 'hand_of_fate', name = 'Hand of Fate', cost = 0,
+    text = { 'Upgrade every poker hand', '{C:attention}5{} times' },
+    use = function(self, card, area, copier)
+        for hand_key, hand in pairs(G.GAME.hands) do
+            if type(hand) == 'table' and hand.level then
+                level_up_hand(card, hand_key, true, 5)
+            end
+        end
+    end,
+}
+
+register_broken_tarot {
+    key = 'joker_festival', name = 'Joker Festival', cost = 0,
+    text = { 'Create up to {C:attention}2{} random Jokers', '{C:inactive}(Must have room)' },
+    can_use = function(self, card)
+        return G.jokers and #G.jokers.cards < G.jokers.config.card_limit
+    end,
+    use = function(self, card, area, copier)
+        for i = 1, 2 do
+            if #G.jokers.cards < G.jokers.config.card_limit then
+                local joker = create_card('Joker', G.jokers, nil, nil, nil, nil, nil, 'bstf_festival')
+                joker:add_to_deck()
+                G.jokers:emplace(joker)
+            end
+        end
+    end,
+}
+
+register_broken_tarot {
+    key = 'the_big_bang', name = 'The Big Bang', cost = 0,
+    text = { 'Gain {C:attention}+3{} hands this round', 'and {C:money}$50{}' },
+    use = function(self, card, area, copier)
+        ease_hands_played(3)
+        ease_dollars(50)
+    end,
+}

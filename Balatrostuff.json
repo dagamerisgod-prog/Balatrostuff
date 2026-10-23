@@ -3,12 +3,12 @@
   "name": "Balatrostuff",
   "display_name": "Balatrostuff",
   "author": ["Balatrostuff"],
-  "description": "28 original gameplay Jokers, from money and hand synergies to high-risk multipliers.",
+  "description": "36 original Jokers and 4 deliberately overpowered Tarot consumables.",
   "prefix": "bstf",
   "main_file": "main.lua",
   "priority": 0,
   "badge_colour": "D94B4B",
   "badge_text_colour": "FFFFFF",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "dependencies": ["Steamodded (>=1.0.0~BETA-1221a)"]
 }
